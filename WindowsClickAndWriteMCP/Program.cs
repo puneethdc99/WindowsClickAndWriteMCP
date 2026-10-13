@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using WindowsClickAndWriteMCP.Services;
 
@@ -14,6 +15,13 @@ using WindowsClickAndWriteMCP.Services;
 // ════════════════════════════════════════════════════════════════════
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// Ensure stdout is kept clean strictly for MCP JSON-RPC communication
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options =>
+{
+    options.LogToStandardErrorThreshold = LogLevel.Trace;
+});
 
 // Register our automation service as a singleton (holds the UIA3 COM automation object)
 builder.Services.AddSingleton<WindowsAutomationService>();
