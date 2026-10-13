@@ -123,4 +123,32 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool IsWindowVisible(nint hWnd);
+
+    // --- Desktop Switching (Input Desktop Attachment) ---
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern nint OpenInputDesktop(uint dwFlags, [MarshalAs(UnmanagedType.Bool)] bool fInherit, uint dwDesiredAccess);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetThreadDesktop(nint hDesktop);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool CloseDesktop(nint hDesktop);
+
+    internal const uint DESKTOP_ALL_ACCESS = 0x01FF;
+
+    internal static void EnsureAttachedToInputDesktop()
+    {
+        try
+        {
+            var hDesk = OpenInputDesktop(0, false, DESKTOP_ALL_ACCESS);
+            if (hDesk != nint.Zero)
+            {
+                SetThreadDesktop(hDesk);
+            }
+        }
+        catch { }
+    }
 }

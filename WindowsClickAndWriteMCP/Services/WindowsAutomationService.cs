@@ -29,6 +29,7 @@ public sealed class WindowsAutomationService : IDisposable
 
     public WindowsAutomationService()
     {
+        NativeMethods.EnsureAttachedToInputDesktop();
         // Ensure DPI awareness so screen coordinates are accurate on high-DPI displays
         NativeMethods.SetProcessDPIAware();
         _automation = new UIA3Automation();
@@ -44,25 +45,105 @@ public sealed class WindowsAutomationService : IDisposable
     public List<WindowInfo> ListWindows()
     {
         var windows = new List<WindowInfo>();
-        NativeMethods.EnumWindows((hWnd, _) =>
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Enumerate top-level elements from UI Automation Desktop
+        try
         {
-            if (!NativeMethods.IsWindowVisible(hWnd)) return true;
+            var desktop = _automation.GetDesktop();
+            var children = desktop.FindAllChildren();
+            foreach (var child in children)
+            {
+                try
+                {
+                    string name = child.Name ?? "";
+                    if (string.IsNullOrWhiteSpace(name)) continue;
 
-            int len = NativeMethods.GetWindowTextLength(hWnd);
-            if (len == 0) return true;
+                    long handle = 0;
+                    try { handle = (long)child.Properties.NativeWindowHandle.Value; } catch { }
 
-            var sb = new StringBuilder(len + 1);
-            NativeMethods.GetWindowText(hWnd, sb, sb.Capacity);
-            string title = sb.ToString();
+                    string processName = "";
+                    try
+                    {
+                        int pid = child.Properties.ProcessId.Value;
+                        processName = Process.GetProcessById(pid).ProcessName;
+                    }
+                    catch { }
 
-            NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
-            string processName = "";
-            try { processName = Process.GetProcessById((int)pid).ProcessName; }
-            catch { /* process may have exited */ }
+                    string key = $"{name}|{processName}";
+                    if (seen.Add(key))
+                    {
+                        windows.Add(new WindowInfo(name, processName, handle));
+                    }
+                }
+                catch { }
+            }
+        }
+        catch { }
 
-            windows.Add(new WindowInfo(title, processName, (long)hWnd));
-            return true;
-        }, nint.Zero);
+        // 2. Win32 EnumWindows on thread attached to interactive InputDesktop
+        try
+        {
+            var threadWindows = new List<WindowInfo>();
+            var thread = new Thread(() =>
+            {
+                NativeMethods.EnsureAttachedToInputDesktop();
+                NativeMethods.EnumWindows((hWnd, _) =>
+                {
+                    if (!NativeMethods.IsWindowVisible(hWnd)) return true;
+
+                    int len = NativeMethods.GetWindowTextLength(hWnd);
+                    if (len == 0) return true;
+
+                    var sb = new StringBuilder(len + 1);
+                    NativeMethods.GetWindowText(hWnd, sb, sb.Capacity);
+                    string title = sb.ToString();
+
+                    NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
+                    string processName = "";
+                    try { processName = Process.GetProcessById((int)pid).ProcessName; }
+                    catch { }
+
+                    threadWindows.Add(new WindowInfo(title, processName, (long)hWnd));
+                    return true;
+                }, nint.Zero);
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            foreach (var w in threadWindows)
+            {
+                string key = $"{w.Title}|{w.ProcessName}";
+                if (seen.Add(key))
+                {
+                    windows.Add(w);
+                }
+            }
+        }
+        catch { }
+
+        // 3. Process.GetProcesses() with MainWindowTitle
+        try
+        {
+            foreach (var proc in Process.GetProcesses())
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(proc.MainWindowTitle))
+                    {
+                        string key = $"{proc.MainWindowTitle}|{proc.ProcessName}";
+                        if (seen.Add(key))
+                        {
+                            windows.Add(new WindowInfo(proc.MainWindowTitle, proc.ProcessName, (long)proc.MainWindowHandle));
+                        }
+                    }
+                }
+                catch { }
+            }
+        }
+        catch { }
+
         return windows;
     }
 
@@ -458,14 +539,29 @@ public sealed class WindowsAutomationService : IDisposable
                 cf.ByControlType(ControlType.Window).And(cf.ByName(windowTitle)));
             if (win != null) return win;
 
-            // Partial match
-            var allWindows = desktop.FindAllChildren(cf => cf.ByControlType(ControlType.Window));
+            // Partial match across all desktop children
+            var allWindows = desktop.FindAllChildren();
             foreach (var w in allWindows)
             {
                 try
                 {
                     if (w.Name?.Contains(windowTitle, StringComparison.OrdinalIgnoreCase) == true)
                         return w;
+                }
+                catch { }
+            }
+
+            // Fallback: match from ListWindows handles
+            var inputWindows = ListWindows();
+            var match = inputWindows.FirstOrDefault(w =>
+                w.Title.Contains(windowTitle, StringComparison.OrdinalIgnoreCase) &&
+                (processName == null || w.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase)));
+            if (match != null && match.Handle != 0)
+            {
+                try
+                {
+                    var fromHwnd = _automation.FromHandle((nint)match.Handle);
+                    if (fromHwnd != null) return fromHwnd;
                 }
                 catch { }
             }
