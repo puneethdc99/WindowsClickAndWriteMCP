@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using WindowsMCP.Services;
+using WindowsClickAndWriteMCP.Services;
 
-namespace WindowsMCP.Tools;
+namespace WindowsClickAndWriteMCP.Tools;
 
 /// <summary>
 /// MCP tools for discovering windows and UI elements on the screen.

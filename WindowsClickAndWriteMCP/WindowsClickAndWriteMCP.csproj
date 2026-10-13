@@ -6,8 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <AssemblyName>WindowsMCP</AssemblyName>
-    <RootNamespace>WindowsMCP</RootNamespace>
+    <AssemblyName>WindowsClickAndWriteMCP</AssemblyName>
+    <RootNamespace>WindowsClickAndWriteMCP</RootNamespace>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

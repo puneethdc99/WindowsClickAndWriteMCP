@@ -7,9 +7,9 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Conditions;
 using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
-using WindowsMCP.Native;
+using WindowsClickAndWriteMCP.Native;
 
-namespace WindowsMCP.Services;
+namespace WindowsClickAndWriteMCP.Services;
 
 /// <summary>
 /// Core automation service that provides two categories of interaction:

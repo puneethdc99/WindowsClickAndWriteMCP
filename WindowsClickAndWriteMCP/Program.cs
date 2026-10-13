@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ModelContextProtocol;
-using WindowsMCP.Services;
+using WindowsClickAndWriteMCP.Services;
 
 // ════════════════════════════════════════════════════════════════════
-//  WindowsMCP — Windows Click & Write MCP Server
+//  WindowsClickAndWriteMCP — Windows Click & Write MCP Server
 //  
 //  A local MCP server that provides tools to click any UI element
 //  and type text into any input field on any Windows application.

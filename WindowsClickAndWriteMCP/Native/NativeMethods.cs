@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace WindowsMCP.Native;
+namespace WindowsClickAndWriteMCP.Native;
 
 /// <summary>
 /// Win32 API interop for low-level mouse and keyboard input, window management,

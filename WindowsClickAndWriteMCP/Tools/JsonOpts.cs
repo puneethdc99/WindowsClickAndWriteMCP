@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace WindowsMCP.Tools;
+namespace WindowsClickAndWriteMCP.Tools;
 
 /// <summary>
 /// Shared JSON serialization options for consistent MCP tool output formatting.
