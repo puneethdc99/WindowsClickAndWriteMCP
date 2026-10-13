@@ -341,35 +341,41 @@ public sealed class WindowsAutomationService : IDisposable
 
     private static void PerformClick(int x, int y, string button, bool doubleClick)
     {
-        NativeMethods.SetCursorPos(x, y);
-        Thread.Sleep(50); // brief pause for cursor to settle
-
-        uint down, up;
-        switch (button.ToLowerInvariant())
+        var t = new Thread(() =>
         {
-            case "right":
-                down = NativeMethods.MOUSEEVENTF_RIGHTDOWN;
-                up = NativeMethods.MOUSEEVENTF_RIGHTUP;
-                break;
-            case "middle":
-                down = NativeMethods.MOUSEEVENTF_MIDDLEDOWN;
-                up = NativeMethods.MOUSEEVENTF_MIDDLEUP;
-                break;
-            default:
-                down = NativeMethods.MOUSEEVENTF_LEFTDOWN;
-                up = NativeMethods.MOUSEEVENTF_LEFTUP;
-                break;
-        }
+            NativeMethods.EnsureAttachedToInputDesktop();
+            NativeMethods.SetCursorPos(x, y);
+            Thread.Sleep(50); // brief pause for cursor to settle
 
-        NativeMethods.mouse_event(down, 0, 0, 0, nint.Zero);
-        NativeMethods.mouse_event(up, 0, 0, 0, nint.Zero);
+            uint down, up;
+            switch (button.ToLowerInvariant())
+            {
+                case "right":
+                    down = NativeMethods.MOUSEEVENTF_RIGHTDOWN;
+                    up = NativeMethods.MOUSEEVENTF_RIGHTUP;
+                    break;
+                case "middle":
+                    down = NativeMethods.MOUSEEVENTF_MIDDLEDOWN;
+                    up = NativeMethods.MOUSEEVENTF_MIDDLEUP;
+                    break;
+                default:
+                    down = NativeMethods.MOUSEEVENTF_LEFTDOWN;
+                    up = NativeMethods.MOUSEEVENTF_LEFTUP;
+                    break;
+            }
 
-        if (doubleClick)
-        {
-            Thread.Sleep(50);
             NativeMethods.mouse_event(down, 0, 0, 0, nint.Zero);
             NativeMethods.mouse_event(up, 0, 0, 0, nint.Zero);
-        }
+
+            if (doubleClick)
+            {
+                Thread.Sleep(50);
+                NativeMethods.mouse_event(down, 0, 0, 0, nint.Zero);
+                NativeMethods.mouse_event(up, 0, 0, 0, nint.Zero);
+            }
+        });
+        t.Start();
+        t.Join();
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -511,15 +517,20 @@ public sealed class WindowsAutomationService : IDisposable
             vkCodes.Add(vk);
         }
 
-        // Press all keys down in order
-        foreach (var vk in vkCodes)
-            SendKeyDown(vk);
+        // Press all keys down in order and release in reverse order on InputDesktop thread
+        var t = new Thread(() =>
+        {
+            NativeMethods.EnsureAttachedToInputDesktop();
+            foreach (var vk in vkCodes)
+                SendKeyDown(vk);
 
-        Thread.Sleep(50);
+            Thread.Sleep(50);
 
-        // Release in reverse order
-        for (int i = vkCodes.Count - 1; i >= 0; i--)
-            SendKeyUp(vkCodes[i]);
+            for (int i = vkCodes.Count - 1; i >= 0; i--)
+                SendKeyUp(vkCodes[i]);
+        });
+        t.Start();
+        t.Join();
 
         return new TypeResult(true, $"Sent shortcut: {shortcut}");
     }
@@ -650,30 +661,42 @@ public sealed class WindowsAutomationService : IDisposable
 
     private static void SendUnicodeString(string text)
     {
-        foreach (char c in text)
+        var t = new Thread(() =>
         {
-            var inputs = new NativeMethods.INPUT[2];
+            NativeMethods.EnsureAttachedToInputDesktop();
+            foreach (char c in text)
+            {
+                var inputs = new NativeMethods.INPUT[2];
 
-            inputs[0].type = NativeMethods.INPUT_KEYBOARD;
-            inputs[0].U.ki.wVk = 0;
-            inputs[0].U.ki.wScan = c;
-            inputs[0].U.ki.dwFlags = NativeMethods.KEYEVENTF_UNICODE;
+                inputs[0].type = NativeMethods.INPUT_KEYBOARD;
+                inputs[0].U.ki.wVk = 0;
+                inputs[0].U.ki.wScan = c;
+                inputs[0].U.ki.dwFlags = NativeMethods.KEYEVENTF_UNICODE;
 
-            inputs[1].type = NativeMethods.INPUT_KEYBOARD;
-            inputs[1].U.ki.wVk = 0;
-            inputs[1].U.ki.wScan = c;
-            inputs[1].U.ki.dwFlags = NativeMethods.KEYEVENTF_UNICODE | NativeMethods.KEYEVENTF_KEYUP;
+                inputs[1].type = NativeMethods.INPUT_KEYBOARD;
+                inputs[1].U.ki.wVk = 0;
+                inputs[1].U.ki.wScan = c;
+                inputs[1].U.ki.dwFlags = NativeMethods.KEYEVENTF_UNICODE | NativeMethods.KEYEVENTF_KEYUP;
 
-            NativeMethods.SendInput(2, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
-            Thread.Sleep(5); // small delay between characters for reliability
-        }
+                NativeMethods.SendInput(2, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+                Thread.Sleep(5); // small delay between characters for reliability
+            }
+        });
+        t.Start();
+        t.Join();
     }
 
     private static void SendKeyPress(ushort vkCode)
     {
-        SendKeyDown(vkCode);
-        Thread.Sleep(30);
-        SendKeyUp(vkCode);
+        var t = new Thread(() =>
+        {
+            NativeMethods.EnsureAttachedToInputDesktop();
+            SendKeyDown(vkCode);
+            Thread.Sleep(30);
+            SendKeyUp(vkCode);
+        });
+        t.Start();
+        t.Join();
     }
 
     private static void SendKeyDown(ushort vkCode)
@@ -696,11 +719,19 @@ public sealed class WindowsAutomationService : IDisposable
 
     private static void SendKeyCombo(ushort modifier, ushort key)
     {
-        SendKeyDown(modifier);
-        Thread.Sleep(20);
-        SendKeyPress(key);
-        Thread.Sleep(20);
-        SendKeyUp(modifier);
+        var t = new Thread(() =>
+        {
+            NativeMethods.EnsureAttachedToInputDesktop();
+            SendKeyDown(modifier);
+            Thread.Sleep(20);
+            SendKeyDown(key);
+            Thread.Sleep(20);
+            SendKeyUp(key);
+            Thread.Sleep(20);
+            SendKeyUp(modifier);
+        });
+        t.Start();
+        t.Join();
     }
 
     private static ushort MapKeyName(string name) => name.ToUpperInvariant() switch
