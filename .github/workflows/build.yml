@@ -1,0 +1,93 @@
+name: Build & Publish WindowsMCP
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: WindowsMCP
+
+    - name: Build
+      run: dotnet build -c Release --no-restore
+      working-directory: WindowsMCP
+
+    - name: Publish standalone exe (win-x64)
+      run: dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true -o ./publish
+      working-directory: WindowsMCP
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: WindowsMCP-win-x64
+        path: WindowsMCP/publish/WindowsMCP.exe
+        retention-days: 90
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Publish standalone exe (win-x64)
+      run: dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true -o ./publish
+      working-directory: WindowsMCP
+
+    - name: Publish self-contained exe (win-x64)
+      run: dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o ./publish-self-contained
+      working-directory: WindowsMCP
+
+    - name: Create Release Tag
+      id: tag
+      shell: pwsh
+      run: |
+        $date = Get-Date -Format "yyyy.MM.dd"
+        $run = "${{ github.run_number }}"
+        $tag = "v${date}.${run}"
+        echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+        echo "Created tag: $tag"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.tag.outputs.TAG }}
+        name: WindowsMCP ${{ steps.tag.outputs.TAG }}
+        body: |
+          ## WindowsMCP — Windows Click & Write MCP Server
+          
+          Automated build from commit ${{ github.sha }}.
+          
+          ### Downloads
+          - **WindowsMCP.exe** — Framework-dependent (requires .NET 10 runtime)
+          - **WindowsMCP-self-contained.exe** — Self-contained (no runtime needed, larger file)
+        files: |
+          WindowsMCP/publish/WindowsMCP.exe
+          WindowsMCP/publish-self-contained/WindowsMCP.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
