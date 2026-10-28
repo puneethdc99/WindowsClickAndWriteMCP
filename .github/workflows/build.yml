@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build:
@@ -83,11 +84,18 @@ jobs:
       run: dotnet pack -c Release /p:PackageVersion=1.0.${{ github.run_number }} -o ./nupkg
       working-directory: WindowsClickAndWriteMCP
 
+    - name: NuGet Login (Trusted Publishing OIDC)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: puneethdc99
+
     - name: Publish to NuGet.org
-      run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-      working-directory: WindowsClickAndWriteMCP
-      env:
-        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      shell: pwsh
+      run: |
+        $pkg = (Get-ChildItem -Path "WindowsClickAndWriteMCP/nupkg/*.nupkg" | Select-Object -First 1).FullName
+        Write-Host "Publishing package: $pkg"
+        dotnet nuget push $pkg --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
