@@ -79,6 +79,16 @@ jobs:
       run: |
         Rename-Item -Path "WindowsClickAndWriteMCP/publish-self-contained/WindowsClickAndWriteMCP.exe" -NewName "WindowsClickAndWriteMCP-self-contained.exe"
 
+    - name: Pack NuGet tool package
+      run: dotnet pack -c Release /p:PackageVersion=1.0.${{ github.run_number }} -o ./nupkg
+      working-directory: WindowsClickAndWriteMCP
+
+    - name: Publish to NuGet.org
+      run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      working-directory: WindowsClickAndWriteMCP
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
@@ -89,12 +99,15 @@ jobs:
           
           Automated build from commit ${{ github.sha }}.
           
-          ### Downloads
+          ### Installation Options
+          - **.NET Global Tool (Recommended)**: `dotnet tool install -g WindowsClickAndWriteMCP`
           - **WindowsClickAndWriteMCP.exe** — Framework-dependent (requires .NET 10 runtime, ~4 MB)
           - **WindowsClickAndWriteMCP-self-contained.exe** — Self-contained (no runtime needed, ~70 MB)
+          - **WindowsClickAndWriteMCP.*.nupkg** — NuGet Tool Package
         files: |
           WindowsClickAndWriteMCP/publish/WindowsClickAndWriteMCP.exe
           WindowsClickAndWriteMCP/publish-self-contained/WindowsClickAndWriteMCP-self-contained.exe
+          WindowsClickAndWriteMCP/nupkg/*.nupkg
         draft: false
         prerelease: false
       env:

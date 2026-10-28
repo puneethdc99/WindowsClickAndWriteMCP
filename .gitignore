@@ -21,3 +21,4 @@ Desktop.ini
 # Build artifacts
 *.nupkg
 *.snupkg
+nupkg/

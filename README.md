@@ -1,6 +1,7 @@
 # 🖱️ WindowsClickAndWriteMCP — Windows Click & Write MCP Server
 
 [![Build & Publish](https://github.com/puneethdc99/WindowsClickAndWriteMCP/actions/workflows/build.yml/badge.svg)](https://github.com/puneethdc99/WindowsClickAndWriteMCP/actions/workflows/build.yml)
+[![NuGet Version](https://img.shields.io/nuget/v/WindowsClickAndWriteMCP.svg)](https://www.nuget.org/packages/WindowsClickAndWriteMCP)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-blue)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-green)](https://modelcontextprotocol.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
@@ -61,20 +62,28 @@ WindowsClickAndWriteMCP exposes **7 tools** via the MCP protocol:
 
 ## 📦 Installation
 
-### Prerequisites
+### Option 1: Install as a .NET Global Tool (Recommended)
 
-- **Windows 10 or 11**
-- **One** of the following:
-  - [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) — for the framework-dependent exe (~4 MB)
-  - No runtime needed — for the self-contained exe (~70 MB, includes .NET runtime)
+Install globally with a single command:
 
-### Option 1: Download the Pre-Built Exe (Easiest)
+```bash
+dotnet tool install -g WindowsClickAndWriteMCP
+```
+
+To update to the latest version in the future:
+```bash
+dotnet tool update -g WindowsClickAndWriteMCP
+```
+
+Once installed, the command `windows-click-and-write` is available anywhere in your terminal or MCP configurations!
+
+### Option 2: Download the Pre-Built Standalone Exe
 
 1. Go to the [**Releases**](https://github.com/puneethdc99/WindowsClickAndWriteMCP/releases) page
-2. Download **`WindowsClickAndWriteMCP.exe`** (framework-dependent) or **`WindowsClickAndWriteMCP-self-contained.exe`** (no runtime needed)
+2. Download **`WindowsClickAndWriteMCP.exe`** (framework-dependent, requires .NET 10 runtime) or **`WindowsClickAndWriteMCP-self-contained.exe`** (no runtime needed, includes .NET)
 3. Save it somewhere on your machine (e.g., `C:\Tools\WindowsClickAndWriteMCP.exe`)
 
-### Option 2: Build From Source
+### Option 3: Build From Source
 
 ```bash
 # Clone the repository
